@@ -1,0 +1,9 @@
+{
+  "name": "mobile-check",
+  "private": true,
+  "type": "module",
+  "description": "Runner for the mobile-check tool. playwright-core 1.60.0 matches the cached chromium-1223.",
+  "dependencies": {
+    "playwright-core": "1.60.0"
+  }
+}
