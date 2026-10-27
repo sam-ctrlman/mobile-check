@@ -1,6 +1,6 @@
 ---
 name: mobile-check
-description: Check a web app at PHONE size with touch (390×844 iPhone + 360×800 Android), using Playwright. It finds pages whose client JS never ran (dead buttons), blocked /_next resources, horizontal overflow and too-small tap targets, and it taps every safe control to prove it reacts. It saves screenshots, report.md and a real-phone checklist. Use when the user types /mobile-check [routes…] [--phone], or says "mobile check", "test on mobile", "check the phone layout", "buttons don't work on my phone". Also REQUIRED at the end of every UI batch (dashboard, site) before a worklog may say "Tested ✔". Read-only: a network guard aborts every non-GET request, so no tap can write.
+description: Check a web app at PHONE size with touch (390×844 iPhone + 360×800 Android), using Playwright. It finds pages whose client JS never ran (dead buttons), blocked /_next resources, horizontal overflow and too-small tap targets, and it taps every safe control to prove it reacts. It saves screenshots, report.md and a real-phone checklist. Use when the user types /mobile-check [routes…] [--phone], or says "mobile check", "test on mobile", "check the phone layout", "buttons don't work on my phone". Also REQUIRED at the end of every UI batch before a worklog may say "Tested ✔". Read-only: a network guard aborts every non-GET request, so no tap can write.
 ---
 
 # /mobile-check
@@ -12,11 +12,11 @@ mobile-check [ROUTE …] [--base URL] [--phone] [--label NAME] [--max-taps N]
 mobile-check all [--phone] [--label NAME]     # crawl same-origin links from /
 ```
 
-- Default base: `http://127.0.0.1:3200` (dashboard). For the site, use `--base http://127.0.0.1:3000`.
+- Default base: `$MOBILE_CHECK_BASE`, else `http://127.0.0.1:3000`. For another app, pass `--base http://127.0.0.1:<port>`.
 - `--phone` reads the base URL from `~/.config/mobile-check/phone-url`, the same URL the user's phone opens.
   - Always run once with `--phone` as well. A 127.0.0.1 run hides problems that only the phone's host triggers (Next dev `allowedDevOrigins`).
   - If the file is missing, ask the user for the URL. Writing that file is outside the project, so it needs no gate.
-- `--label`: the batch name (`M0`, `D4` …). Output goes to `~/Documents/ws01/<project>/screenshots/<YYYY-mon-DD>-<label>[-phone]/`.
+- `--label`: the batch name (e.g. `batch1`). Output goes to `<notes>/<project>/screenshots/<YYYY-mon-DD>-<label>[-phone]/` (`<notes>` = `$MOBILE_CHECK_NOTES`, default `~/Documents/notes`).
 - `setup` / `install` / `uninstall` maintain the tool itself.
 - Exit codes: 0 all pass, 1 a check failed, 2 usage, 3 `mobile-check setup` needed.
 
@@ -27,7 +27,7 @@ mobile-check all [--phone] [--label NAME]     # crawl same-origin links from /
   - Choose the routes from the batch's diff (changed `src/app/**/page.tsx`, and the routes that render the changed components).
   - Fill in dynamic segments with real slugs from the dev DB.
   - Always include `/`, because the shell and menu appear on every page.
-- `all` crawls GET links only: use it for an audit (M0) or when the shell changed.
+- `all` crawls GET links only: use it for a first audit or when the shell changed.
 
 ## What it checks (per route × device)
 

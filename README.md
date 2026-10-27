@@ -20,9 +20,9 @@ After install, `mobile-check` works in any shell, and the `/mobile-check` skill 
 |--------|-------------|
 | `mobile-check [ROUTE …]` | Check the routes (default `/`) on 390×844 and 360×800; write screenshots, `report.json` and `report.md` |
 | `mobile-check all` | Crawl same-origin GET links from `/` (max `--max-routes`), then check each route |
-| `--base URL` | Default `http://127.0.0.1:3200` |
+| `--base URL` | Default `$MOBILE_CHECK_BASE`, else `http://127.0.0.1:3000` |
 | `--phone` | Base URL from `~/.config/mobile-check/phone-url` (the URL the phone opens) |
-| `--label NAME` | Output `~/Documents/ws01/<project>/screenshots/<YYYY-mon-DD>-<label>/` |
+| `--label NAME` | Output `<notes>/<project>/screenshots/<YYYY-mon-DD>-<label>/` (`<notes>` = `$MOBILE_CHECK_NOTES`, default `~/Documents/notes`) |
 | `mobile-check setup` | `npm ci` |
 | `mobile-check install` / `uninstall` | Manage the bin + skill symlinks |
 

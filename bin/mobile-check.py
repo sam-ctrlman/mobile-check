@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -44,8 +45,8 @@ TOOL_DIR = Path(__file__).resolve().parent.parent
 SYMLINK_TARGET = Path.home() / ".local" / "bin" / TOOL_NAME
 SKILL_TARGET = Path.home() / ".claude" / "skills" / TOOL_NAME
 PHONE_URL_FILE = Path.home() / ".config" / TOOL_NAME / "phone-url"
-NOTES_ROOT = Path.home() / "Documents" / "ws01"
-DEFAULT_BASE = "http://127.0.0.1:3200"
+NOTES_ROOT = Path(os.environ.get("MOBILE_CHECK_NOTES", Path.home() / "Documents" / "notes")).expanduser()
+DEFAULT_BASE = os.environ.get("MOBILE_CHECK_BASE", "http://127.0.0.1:3000")
 
 
 def _skill_source() -> Path:
@@ -122,8 +123,8 @@ def cmd_run(argv: list[str]) -> int:
     p.add_argument("routes", nargs="*", help='routes starting with "/", or "all" to crawl from /')
     p.add_argument("--base", default=None, help=f"base URL (default {DEFAULT_BASE})")
     p.add_argument("--phone", action="store_true", help=f"use the phone URL from {PHONE_URL_FILE}")
-    p.add_argument("--label", default="check", help="batch name for the output folder (e.g. M0, D4)")
-    p.add_argument("--out", default=None, help="output folder (default ~/Documents/ws01/<project>/screenshots/<date>-<label>)")
+    p.add_argument("--label", default="check", help="batch name for the output folder (e.g. batch1)")
+    p.add_argument("--out", default=None, help="output folder (default $MOBILE_CHECK_NOTES/<project>/screenshots/<date>-<label>)")
     p.add_argument("--max-taps", type=int, default=30, help="controls tapped per route and device")
     p.add_argument("--max-routes", type=int, default=30, help="route limit for `all`")
     args = p.parse_args(argv)
@@ -132,7 +133,7 @@ def cmd_run(argv: list[str]) -> int:
         die(f"playwright-core missing: run `{TOOL_NAME} setup`", 3)
     if args.phone:
         if not PHONE_URL_FILE.exists():
-            die(f"--phone needs the phone URL in {PHONE_URL_FILE} (one line, e.g. https://my-host.example.com:3200)", 2)
+            die(f"--phone needs the phone URL in {PHONE_URL_FILE} (one line, e.g. https://my-host.example.com:3000)", 2)
         base = PHONE_URL_FILE.read_text().strip()
     else:
         base = args.base or DEFAULT_BASE
