@@ -26,13 +26,23 @@ const DEVICES = [
 
 // Controls the runner never taps (TH | DE | EN labels). They are only measured
 // and listed for the user's real-phone check.
+// The network guard (guardWrites) is what makes a run read-only; this list only keeps
+// the report readable and lists these controls for the real-phone check.
 const DESTRUCTIVE =
-  /delete|remove|publish|unpublish|hide|logout|log out|sign out|save|submit|ลบ|เผยแพร่|ซ่อน|ออกจากระบบ|บันทึก|löschen|entfernen|veröffentlich|ausblenden|abmelden|speichern/i;
+  /delete|remove|publish|unpublish|hide|logout|log out|sign out|save|submit|move up|move down|ลบ|เผยแพร่|ซ่อน|ออกจากระบบ|บันทึก|เลื่อนขึ้น|เลื่อนลง|löschen|entfernen|veröffentlich|ausblenden|abmelden|speichern|nach oben|nach unten/i;
 
 const TAPPABLE = 'a[href], button, [role="button"], [role="tab"], [role="menuitem"], summary, select, input[type="checkbox"], input[type="radio"]';
 const TAP_SCOPE = "header, main, nav, [role=dialog]";
 const MIN_FAIL = 24; // WCAG 2.5.8 minimum
 const MIN_WARN = 44; // Apple HIG / Material comfortable target
+
+// Same walk for controls() and nthControl(): skip hidden, aria-hidden and 1×1 (visually hidden) elements.
+const VISIBLE = `(el) => {
+  const r = el.getBoundingClientRect();
+  const cs = getComputedStyle(el);
+  if (r.width <= 1 || r.height <= 1 || cs.visibility === "hidden" || cs.display === "none") return false;
+  return !el.closest('[aria-hidden="true"]');
+}`;
 
 const slug = (s) => s.replace(/^\/+/, "").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "") || "root";
 
@@ -63,16 +73,24 @@ async function open(page, url) {
 // Visible, enabled controls in the tap scope, in document order.
 async function controls(page) {
   return page.evaluate(
-    ({ TAPPABLE, TAP_SCOPE }) => {
+    ({ TAPPABLE, TAP_SCOPE, VISIBLE }) => {
+      const visible = eval(VISIBLE);
+      // A control off the right/left edge counts unless a sideways-scrolling parent holds it.
+      const inScroller = (el) => {
+        for (let p = el.parentElement; p; p = p.parentElement) {
+          const ox = getComputedStyle(p).overflowX;
+          if ((ox === "auto" || ox === "scroll") && p.scrollWidth > p.clientWidth) return true;
+        }
+        return false;
+      };
       const seen = new Set();
       const out = [];
       for (const scope of document.querySelectorAll(TAP_SCOPE)) {
         for (const el of scope.querySelectorAll(TAPPABLE)) {
           if (seen.has(el)) continue;
           seen.add(el);
+          if (!visible(el)) continue;
           const r = el.getBoundingClientRect();
-          const cs = getComputedStyle(el);
-          if (r.width === 0 || r.height === 0 || cs.visibility === "hidden" || cs.display === "none") continue;
           const label = (el.getAttribute("aria-label") || el.innerText || el.getAttribute("title") || el.getAttribute("href") || el.tagName)
             .trim()
             .replace(/\s+/g, " ")
@@ -82,6 +100,10 @@ async function controls(page) {
             tag: el.tagName.toLowerCase(),
             type: el.getAttribute("type") || "",
             href: el.getAttribute("href") || "",
+            target: el.getAttribute("target") || "",
+            samePage: el.tagName === "A" && el.href === location.href,
+            toolbar: !!el.closest('[role="toolbar"]'),
+            offscreen: (r.right > window.innerWidth + 1 || r.left < -1) && !inScroller(el),
             disabled: el.disabled === true || el.getAttribute("aria-disabled") === "true",
             w: Math.round(r.width),
             h: Math.round(r.height),
@@ -90,29 +112,28 @@ async function controls(page) {
       }
       return out;
     },
-    { TAPPABLE, TAP_SCOPE }
+    { TAPPABLE, TAP_SCOPE, VISIBLE }
   );
 }
 
 // The n-th control from controls(), as a handle (same walk, same order).
 async function nthControl(page, n) {
   const handle = await page.evaluateHandle(
-    ({ TAPPABLE, TAP_SCOPE, n }) => {
+    ({ TAPPABLE, TAP_SCOPE, VISIBLE, n }) => {
+      const visible = eval(VISIBLE);
       const seen = new Set();
       let i = 0;
       for (const scope of document.querySelectorAll(TAP_SCOPE)) {
         for (const el of scope.querySelectorAll(TAPPABLE)) {
           if (seen.has(el)) continue;
           seen.add(el);
-          const r = el.getBoundingClientRect();
-          const cs = getComputedStyle(el);
-          if (r.width === 0 || r.height === 0 || cs.visibility === "hidden" || cs.display === "none") continue;
+          if (!visible(el)) continue;
           if (i++ === n) return el;
         }
       }
       return null;
     },
-    { TAPPABLE, TAP_SCOPE, n }
+    { TAPPABLE, TAP_SCOPE, VISIBLE, n }
   );
   return handle.asElement();
 }
@@ -125,8 +146,23 @@ const snapshot = (page) =>
     size: document.body.innerHTML.length,
   }));
 
+// Hard read-only guard: every request that isn't GET/HEAD/OPTIONS is aborted before it
+// leaves the browser (Next server actions are POSTs), so no tap can write, whatever its label.
+async function guardWrites(ctx, sink) {
+  await ctx.route("**/*", (route) => {
+    const req = route.request();
+    if (["GET", "HEAD", "OPTIONS"].includes(req.method())) return route.continue();
+    sink.push(`${req.method()} ${new URL(req.url()).pathname}`);
+    return route.abort("blockedbyclient");
+  });
+}
+
 function isSkipped(c, base) {
   if (c.disabled) return "disabled";
+  if (c.samePage) return "same-page";
+  if (c.target === "_blank") return "new-tab";
+  // Editor formatting buttons act on a selection/caret the runner doesn't set up.
+  if (c.toolbar) return "editor-toolbar";
   if (c.type === "submit") return "submit";
   if (DESTRUCTIVE.test(c.label)) return "destructive";
   if (c.href && /^(https?:)?\/\//.test(c.href) && !c.href.startsWith(base)) return "external";
@@ -144,6 +180,8 @@ async function checkRoute(browser, device, route) {
     isMobile: true,
     hasTouch: true,
   });
+  const writes = [];
+  await guardWrites(ctx, writes);
   const page = await ctx.newPage();
   const errors = [];
   const blocked = [];
@@ -177,6 +215,7 @@ async function checkRoute(browser, device, route) {
     const small = Math.min(c.w, c.h);
     if (small < MIN_FAIL) result.fails.push(`tap target ${c.w}×${c.h} < ${MIN_FAIL}px: "${c.label}"`);
     else if (small < MIN_WARN) result.warns.push(`tap target ${c.w}×${c.h} < ${MIN_WARN}px: "${c.label}"`);
+    if (c.offscreen) result.fails.push(`off-screen (cut off at the edge): "${c.label}"`);
   }
 
   // Tap every safe control and check that something reacted.
@@ -199,6 +238,8 @@ async function checkRoute(browser, device, route) {
       continue;
     }
     const before = await snapshot(page);
+    const writesBefore = writes.length;
+    const errorsBefore = errors.length;
     try {
       await el.tap({ timeout: 3000 });
     } catch (e) {
@@ -208,6 +249,14 @@ async function checkRoute(browser, device, route) {
     }
     await page.waitForTimeout(cfg.settleMs);
     const after = await snapshot(page);
+    if (writes.length > writesBefore) {
+      // The tap tried to write; the guard aborted it. Errors from that abort are expected.
+      errors.length = errorsBefore;
+      result.taps.push({ label: c.label, reacted: true, note: `write blocked (${writes.slice(writesBefore).join(", ")})` });
+      result.skipped.push({ label: c.label, why: "writes" });
+      await open(page, url);
+      continue;
+    }
     const how =
       after.url !== before.url ? `navigated → ${new URL(after.url).pathname}${new URL(after.url).search}`
       : after.dialogs !== before.dialogs ? "opened a dialog/sheet"
@@ -238,7 +287,11 @@ async function checkRoute(browser, device, route) {
   }
   if (list.length > limit) result.warns.push(`only the first ${limit} of ${list.length} controls were tapped (--max-taps)`);
 
-  result.errors = [...new Set(errors)];
+  // Dev-overlay calls (/__nextjs_*) are blocked too, but aren't app writes.
+  result.writesBlocked = [...new Set(writes)].filter((w) => !w.includes(" /__nextjs_"));
+  // An aborted write can surface as an error after the tap's settle time; those are ours, not the app's.
+  const fromGuard = /ERR_BLOCKED_BY_CLIENT|Failed to fetch/;
+  result.errors = [...new Set(errors)].filter((e) => !(writes.length && fromGuard.test(e)));
   result.blocked = [...new Set(blocked)];
   if (result.errors.length) result.fails.push(...result.errors.map((e) => `JS ${e}`));
   if (result.blocked.length) result.fails.push(...result.blocked.map((b) => `/_next resource blocked or failed: ${b}`));
@@ -250,6 +303,7 @@ async function checkRoute(browser, device, route) {
 // `all`: crawl same-origin links (GET only) breadth-first from the start routes.
 async function crawl(browser, starts) {
   const ctx = await browser.newContext({ viewport: DEVICES[0].viewport, isMobile: true, hasTouch: true });
+  await guardWrites(ctx, []);
   const page = await ctx.newPage();
   const origin = new URL(cfg.base).origin;
   const seen = new Set();

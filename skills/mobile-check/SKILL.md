@@ -1,6 +1,6 @@
 ---
 name: mobile-check
-description: Check a web app at PHONE size with touch (390×844 iPhone + 360×800 Android), using Playwright. It finds pages whose client JS never ran (dead buttons), blocked /_next resources, horizontal overflow and too-small tap targets, and it taps every safe control to prove it reacts. It saves screenshots, report.md and a real-phone checklist. Use when the user types /mobile-check [routes…] [--phone], or says "mobile check", "test on mobile", "check the phone layout", "buttons don't work on my phone". Also REQUIRED at the end of every UI batch (dashboard, site) before a worklog may say "Tested ✔". Read-only: it never submits a form.
+description: Check a web app at PHONE size with touch (390×844 iPhone + 360×800 Android), using Playwright. It finds pages whose client JS never ran (dead buttons), blocked /_next resources, horizontal overflow and too-small tap targets, and it taps every safe control to prove it reacts. It saves screenshots, report.md and a real-phone checklist. Use when the user types /mobile-check [routes…] [--phone], or says "mobile check", "test on mobile", "check the phone layout", "buttons don't work on my phone". Also REQUIRED at the end of every UI batch (dashboard, site) before a worklog may say "Tested ✔". Read-only: a network guard aborts every non-GET request, so no tap can write.
 ---
 
 # /mobile-check
@@ -39,6 +39,10 @@ mobile-check all [--phone] [--label NAME]     # crawl same-origin links from /
 | Overflow | the page scrolls sideways; an opened sheet or dialog sticks out of the screen |
 | Tap targets | a target is smaller than 24 px (fail); smaller than 44 px is a warning |
 | Taps | a safe control shows no reaction: no navigation, no dialog or sheet, no `aria-expanded` change, no DOM change |
+
+**Read-only by a network guard.** Every request that isn't GET, HEAD or OPTIONS is aborted inside the browser before it leaves, and Next server actions are POSTs. A control that tries to write shows up as `write blocked (POST …)` (🛡 in the report) and goes on the real-phone checklist. Before 2026-10-27 the runner relied on labels alone, and it reordered FAQ posts in the dev DB through the ↑/↓ arrows. Labels are not a safety net.
+
+Also skipped: links to the same page, links that open a new tab, and editor toolbar buttons (they need a selection or a caret the runner doesn't set up). A toolbar button that is cut off at the screen edge still **fails** (`off-screen`).
 
 Destructive controls are never tapped: Delete, Publish, Hide, Save, Logout, submit buttons and `/cdn-cgi/` links, matched in TH, DE and EN. They are only measured, and then listed in the **real-phone checklist** in `report.md`.
 

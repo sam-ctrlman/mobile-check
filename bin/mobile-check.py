@@ -95,18 +95,19 @@ def _write_report(out: Path, data: dict) -> tuple[Path, int]:
             f"{len(r['warns'])} | {ok_taps}/{len(r['taps'])} |"
         )
     for r in results:
-        if not (r["fails"] or r["warns"]):
+        if not (r["fails"] or r["warns"] or r.get("writesBlocked")):
             continue
         lines += ["", f"## `{r['route']}` · {r['device']}"]
         lines += [f"- ❌ {f}" for f in r["fails"]]
         lines += [f"- ⚠ {w}" for w in r["warns"]]
+        lines += [f"- 🛡 write blocked by the guard: {w}" for w in r.get("writesBlocked", [])]
     # Real-phone checklist: what the runner did not tap, once per route.
     lines += ["", "## Real-phone checklist (tap these by hand)", ""]
     seen: set[tuple[str, str]] = set()
     for r in results:
         for s in r["skipped"]:
             key = (r["route"], s["label"])
-            if key in seen or s["why"] == "external":
+            if key in seen or s["why"] in ("external", "same-page"):
                 continue
             seen.add(key)
             lines.append(f"- [ ] `{r['route']}`: \"{s['label']}\" ({s['why']}, not tapped by the runner)")
