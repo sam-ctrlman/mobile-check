@@ -1,3 +1,19 @@
 node_modules/
 __pycache__/
 *.pyc
+
+# /memlayout: credentials — never commit
+.env*.local
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+*.credentials
+*service-account*.json
+id_rsa*
+id_ed25519*
+
+# workspace: Claude memory + notes stay local (never tracked)
+.claude/
+docs/notes/
