@@ -5,7 +5,7 @@ description: Check a web app at PHONE size with touch (390×844 iPhone + 360×80
 
 # /mobile-check
 
-The tool is `~/scripts/mobile-check/` (a forge tool). Run it with the Bash tool, from the project's repo directory, so the notes folder is named after the right project:
+The tool is `~/tools/projects/mobile-check/` (a forge tool). Run it with the Bash tool, from the project's repo directory, so the notes folder is named after the right project:
 
 ```
 mobile-check [ROUTE …] [--base URL] [--phone] [--label NAME] [--max-taps N]
