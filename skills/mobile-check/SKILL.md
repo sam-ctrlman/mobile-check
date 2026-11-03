@@ -1,6 +1,7 @@
 ---
 name: mobile-check
-description: Check a web app at PHONE size with touch (390×844 iPhone + 360×800 Android), using Playwright. It finds pages whose client JS never ran (dead buttons), blocked /_next resources, horizontal overflow and too-small tap targets, and it taps every safe control to prove it reacts. It saves screenshots, report.md and a real-phone checklist. Use when the user types /mobile-check [routes…] [--phone], or says "mobile check", "test on mobile", "check the phone layout", "buttons don't work on my phone". Also REQUIRED at the end of every UI batch before a worklog may say "Tested ✔". Read-only: a network guard aborts every non-GET request, so no tap can write.
+description: >-
+  Check a web app at PHONE size with touch (390×844 iPhone + 360×800 Android), using Playwright. It finds pages whose client JS never ran (dead buttons), blocked /_next resources, horizontal overflow and too-small tap targets, and it taps every safe control to prove it reacts. It saves screenshots, report.md and a real-phone checklist. Use when the user types /mobile-check [routes…] [--phone], or says "mobile check", "test on mobile", "check the phone layout", "buttons don't work on my phone". Also REQUIRED at the end of every UI batch before a worklog may say "Tested ✔". Read-only: a network guard aborts every non-GET request, so no tap can write.
 ---
 
 # /mobile-check
