@@ -133,7 +133,7 @@ def cmd_run(argv: list[str]) -> int:
         die(f"playwright-core missing: run `{TOOL_NAME} setup`", 3)
     if args.phone:
         if not PHONE_URL_FILE.exists():
-            die(f"--phone needs the phone URL in {PHONE_URL_FILE} (one line, e.g. https://my-host.example.com:3000)", 2)
+            die(f"--phone needs the phone URL in {PHONE_URL_FILE} (one line, e.g. https://<phone-reachable-host>:3000)", 2)
         base = PHONE_URL_FILE.read_text().strip()
     else:
         base = args.base or DEFAULT_BASE
