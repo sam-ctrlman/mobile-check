@@ -3,7 +3,7 @@
 <!-- created by /memlayout 2026-10-30 · board prefix TOOL-MOBC · workspace tools -->
 
 ## Goal
-Checks web pages at phone size with touch (Playwright), read-only: dead buttons, blocked resources, overflow, small tap targets.
+Read-only Playwright mobile QA CLI: test iPhone & Android viewports, React hydration, tap target sizes, overflow, and button reactions.
 
 ## Users
 A developer who runs Claude Code on their own machine and wants this step done the same way every time.
